@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 41
+/!svn/ver/406/trunk/pomo/sample/languages
+END
+app.pot
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/!svn/ver/406/trunk/pomo/sample/languages/app.pot
+END
+bg.mo
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/!svn/ver/28/trunk/pomo/sample/languages/bg.mo
+END
+app-side.pot
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/!svn/ver/406/trunk/pomo/sample/languages/app-side.pot
+END
+bg-side.mo
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/!svn/ver/32/trunk/pomo/sample/languages/bg-side.mo
+END
+bg.po
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/!svn/ver/406/trunk/pomo/sample/languages/bg.po
+END
+bg-side.po
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/!svn/ver/406/trunk/pomo/sample/languages/bg-side.po
+END
