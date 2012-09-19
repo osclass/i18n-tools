@@ -1,0 +1,12 @@
+# Mac OS X
+.DS_Store
+
+# Git
+*.diff
+*.patch
+
+# Sublime 2
+sftp-config*
+
+# Others
+dist
