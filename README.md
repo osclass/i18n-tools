@@ -15,7 +15,7 @@ php makepot.php plugin <plugin folder> <pot file>
 ## Plugin
 
 ```
-php makepot.php plugin <plugin folder> <pot file>
+php makepot.php theme <theme folder> <pot file>
 ```
 
 ## Credits

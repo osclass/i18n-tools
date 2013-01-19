@@ -21,6 +21,9 @@ class StringExtractor {
             if ( preg_match( '/\.php$/', $file_name ) && $this->does_file_name_match( $prefix . $file_name, $excludes, $includes ) ) {
                 $translations->merge_originals_with( $this->extract_from_file( $file_name, $prefix ) );
             }
+            if ( preg_match( '/\.sql/', $file_name ) && $this->does_file_name_match( $prefix . $file_name, $excludes, $includes ) ) {
+                $translations->merge_originals_with( $this->extract_from_mail( $file_name, $prefix ) );
+            }
             if ( is_dir( $file_name ) ) {
                 $translations->merge_originals_with( $this->extract_from_directory( $file_name, $excludes, $includes, $prefix . $file_name . '/' ) );
             }
@@ -31,7 +34,13 @@ class StringExtractor {
 
     function extract_from_file( $file_name, $prefix ) {
         $code = file_get_contents( $file_name );
-        return $this->extract_entries( $code, $prefix . $file_name );
+        $res = $this->extract_entries( $code, $prefix . $file_name );
+        return $res;
+    }
+
+    function extract_from_mail( $file_name, $prefix ) {
+        $code = file_get_contents( $file_name );
+        return $this->extract_entries_from_email( $code, $prefix . $file_name );
     }
 
     function does_file_name_match( $path, $excludes, $includes ) {
@@ -120,6 +129,41 @@ class StringExtractor {
     function extract_entries( $code, $file_name ) {
         $translations = new Translations;
         $function_calls = $this->find_function_calls( array_keys( $this->rules ), $code );
+        foreach( $function_calls as $call ) {
+            $entry = $this->entry_from_call( $call, $file_name );
+            if ( is_array( $entry ) )
+                foreach( $entry as $single_entry )
+                    $translations->add_entry_or_merge( $single_entry );
+            elseif ( $entry)
+                $translations->add_entry_or_merge( $entry );
+        }
+        return $translations;
+    }
+
+    function extract_entries_from_email( $code, $file_name ) {
+        $translations = new Translations;
+        $function_calls = array();
+
+        if(preg_match_all('|VALUES \(([0-9]+), \'(.{5})\', \'(.+)\', \'(.+)\'\);|', $code, $matches)) {
+            $l = count($matches[0]);
+            for($k=0;$k<$l;$k++) {
+                $function_calls[] = array(
+                    'name' => '__',
+                    'args' => array(
+                        0 => str_replace("\'", "'", $matches[3][$k])
+                    ),
+                    'line' => $matches[1][$k]
+                );
+                $function_calls[] = array(
+                    'name' => '__',
+                    'args' => array(
+                        0 => str_replace("\'", "'", $matches[4][$k])
+                    ),
+                    'line' => $matches[1][$k]
+                );
+            }
+        }
+
         foreach( $function_calls as $call ) {
             $entry = $this->entry_from_call( $call, $file_name );
             if ( is_array( $entry ) )

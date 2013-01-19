@@ -12,8 +12,12 @@ class MakePOT {
 
     var $projects = array(
         'generic',
-        'plugin',
+        'core',
+        'messages',
         'theme',
+        'plugin',
+        'email',
+        'all'
     );
 
     var $rules = array(
@@ -32,22 +36,7 @@ class MakePOT {
             'add-comments' => 'translators',
             'comments' => "Copyright (C) {year} {package-name}\nThis file is distributed under the same license as the {package-name} package.",
         ),
-        'generic' => array(),
-        'plugin' => array(
-            'description' => 'Translation of the Osclass plugin {name} {version} by {author}',
-            'msgid-bugs-address' => 'http://osclass.org/',
-            'copyright-holder' => '{author}',
-            'package-name' => '{name}',
-            'package-version' => '{version}',
-        ),
-        'theme' => array(
-            'description' => 'Translation of the Osclass theme {name} {version} by {author}',
-            'msgid-bugs-address' => 'http://osclass.org/',
-            'copyright-holder' => '{author}',
-            'package-name' => '{name}',
-            'package-version' => '{version}',
-            'comments' => 'Copyright (C) {year} {author}\nThis file is distributed under the same license as the {package-name} package.',
-        )
+        'generic' => array()
     );
 
     function __construct($deprecated = true) {
@@ -70,7 +59,11 @@ class MakePOT {
     }
 
     function xgettext($project, $dir, $output_file, $placeholders = array(), $excludes = array(), $includes = array()) {
-        $meta = array_merge( $this->meta['default'], $this->meta[$project] );
+        if(isset($this->meta[$project])) {
+            $meta = $this->meta[$project];
+        } else {
+            $meta = $this->meta['default'];
+        }
         $placeholders = array_merge( $meta, $placeholders );
         $meta['output'] = $this->realpath_missing( $output_file );
         $placeholders['year'] = date( 'Y' );
@@ -84,8 +77,8 @@ class MakePOT {
         $pot = new PO;
         $pot->entries = $originals->entries;
 
-        $pot->set_header( 'Project-Id-Version', $meta['package-name'].' '.$meta['package-version'] );
-        $pot->set_header( 'Report-Msgid-Bugs-To', $meta['msgid-bugs-address'] );
+        $pot->set_header( 'Project-Id-Version', 'Osclass' );
+        $pot->set_header( 'Report-Msgid-Bugs-To', @$meta['msgid-bugs-address'] );
         $pot->set_header( 'POT-Creation-Date', gmdate( 'Y-m-d H:i:s+00:00' ) );
         $pot->set_header( 'MIME-Version', '1.0' );
         $pot->set_header( 'Content-Type', 'text/plain; charset=UTF-8' );
@@ -98,42 +91,72 @@ class MakePOT {
         return true;
     }
 
-    function get_first_lines($filename, $lines = 30) {
-        $extf = fopen($filename, 'r');
-        if (!$extf) return false;
-        $first_lines = '';
-        foreach(range(1, $lines) as $x) {
-            $line = fgets($extf);
-            if (feof($extf)) break;
-            if (false === $line) {
-                return false;
-            }
-            $first_lines .= $line;
+    function osc_generic($dir, $args) {
+        $defaults = array(
+            'project' => 'core',
+            'output' => null,
+            'default_output' => 'core.po',
+            'includes' => array(),
+            'excludes' => array('oc-content/.*', 'oc-includes/osclass/gui/.*' ),
+            'extract_not_gettexted' => false,
+            'not_gettexted_files_filter' => false,
+        );
+        $args = array_merge( $defaults, $args );
+        extract( $args );
+        $placeholders = array();
+
+        $output = is_null( $output )? $default_output : $output;
+        $res = $this->xgettext( $project, $dir, $output, $placeholders, $excludes, $includes );
+        if ( !$res ) return false;
+
+        if ( $extract_not_gettexted ) {
+            $old_dir = getcwd();
+            $output = realpath( $output );
+            chdir( $dir );
+            $php_files = NotGettexted::list_php_files('.');
+            //$php_files = array_filter( $php_files, $not_gettexted_files_filter );
+            $not_gettexted = new NotGettexted;
+            $res = $not_gettexted->command_extract( $output, $php_files );
+            chdir( $old_dir );
+            /* Adding non-gettexted strings can repeat some phrases */
+            $output_shell = escapeshellarg( $output );
+            system( "msguniq --use-first $output_shell -o $output_shell" );
         }
-        return $first_lines;
+        return $res;
     }
 
-    function get_addon_header($header, &$source) {
-        if (preg_match('|'.$header.':(.*)$|mi', $source, $matches))
-            return trim($matches[1]);
-        else
-            return false;
+    function core($dir, $output) {
+        return $this->osc_generic(
+            $dir,
+            array(
+                'project' => 'core',
+                'output' => $output,
+                'extract_not_gettexted' => true
+            )
+        );
     }
 
-    function generic($dir, $output) {
-        $output = is_null($output)? "generic.pot" : $output;
-        return $this->xgettext('generic', $dir, $output, array());
+    function messages($dir, $output) {
+        $this->extractor = new StringExtractor(array('_m' => array('string')));
+        return $this->osc_generic(
+            $dir,
+            array(
+                'project' => 'messages',
+                'output' => $output,
+                'extract_not_gettexted' => true
+            )
+        );
     }
 
-    function guess_plugin_slug($dir) {
-        if ('trunk' == basename($dir)) {
-            $slug = basename(dirname($dir));
-        } elseif (in_array(basename(dirname($dir)), array('branches', 'tags'))) {
-            $slug = basename(dirname(dirname($dir)));
-        } else {
-            $slug = basename($dir);
-        }
-        return $slug;
+    function mail($dir, $output) {
+        return $this->osc_generic(
+            $dir,
+            array(
+                'project' => 'mail',
+                'output' => $output,
+                'extract_not_gettexted' => true
+            )
+        );
     }
 
     function plugin($dir, $output, $slug = null) {
@@ -190,6 +213,57 @@ class MakePOT {
         system("msguniq $output_shell -o $output_shell");
         return $res;
     }
+
+    function all($dir, $output) {
+        $this->core($dir, "tmp/core.po");
+        $this->messages($dir, "tmp/messages.po");
+        $this->theme($dir."/oc-content/themes/modern", "tmp/theme.po");
+        $this->mail($dir."/oc-content/languages/en_US", "tmp/mail.po");
+    }
+
+
+
+
+    function get_first_lines($filename, $lines = 30) {
+        $extf = fopen($filename, 'r');
+        if (!$extf) return false;
+        $first_lines = '';
+        foreach(range(1, $lines) as $x) {
+            $line = fgets($extf);
+            if (feof($extf)) break;
+            if (false === $line) {
+                return false;
+            }
+            $first_lines .= $line;
+        }
+        return $first_lines;
+    }
+
+
+    function get_addon_header($header, &$source) {
+        if (preg_match('|'.$header.':(.*)$|mi', $source, $matches))
+            return trim($matches[1]);
+        else
+            return false;
+    }
+
+    function generic($dir, $output) {
+        $output = is_null($output)? "generic.pot" : $output;
+        return $this->xgettext('generic', $dir, $output, array());
+    }
+
+    function guess_plugin_slug($dir) {
+        if ('trunk' == basename($dir)) {
+            $slug = basename(dirname($dir));
+        } elseif (in_array(basename(dirname($dir)), array('branches', 'tags'))) {
+            $slug = basename(dirname(dirname($dir)));
+        } else {
+            $slug = basename($dir);
+        }
+        return $slug;
+    }
+
+
 }
 
 // run the CLI only if the file
@@ -200,11 +274,11 @@ if ($included_files[0] == __FILE__) {
     if ((3 == count($argv) || 4 == count($argv)) && in_array($method = str_replace('-', '_', $argv[1]), get_class_methods($makepot))) {
         $res = call_user_func(array(&$makepot, $method), realpath($argv[2]), isset($argv[3])? $argv[3] : null);
         if (false === $res) {
-            fwrite(STDERR, "Couldn't generate POT file!\n");
+            fwrite(STDERR, "Couldn't generate PO file!\n");
         }
     } else {
         $usage  = "Usage: php makepot.php PROJECT DIRECTORY [OUTPUT]\n\n";
-        $usage .= "Generate POT file from the files in DIRECTORY [OUTPUT]\n";
+        $usage .= "Generate PO file from the files in DIRECTORY [OUTPUT]\n";
         $usage .= "Available projects: ".implode(', ', $makepot->projects)."\n";
         fwrite(STDERR, $usage);
         exit(1);
