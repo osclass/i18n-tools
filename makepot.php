@@ -137,7 +137,7 @@ class MakePOT {
     }
 
     function messages($dir, $output) {
-        $this->extractor = new StringExtractor(array('_m' => array('string')));
+        $this->extractor = new StringExtractor(array('_m' => array('string'), '_mn' => array('string')));
         return $this->osc_generic(
             $dir,
             array(
